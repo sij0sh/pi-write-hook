@@ -1,6 +1,6 @@
 # write-hook
 
-> Rules that stay invisible until a write would break them, then hold the edit until it is fixed.
+> Rules that stay out of the context window until they are needed.
 
 `write-hook` is a Pi extension that defers `edit` and `write` calls matching your rules until the agent confirms or corrects them.
 
@@ -8,14 +8,14 @@
 
 Important instructions in `AGENTS.md` degrade as sessions grow: they compete with everything else in context. A default hook on every edit or write has the opposite fault: it fires whether it is relevant or not, so its output becomes noise or triggers rewrites of files that were already fine.
 
-`write-hook` fires only when a rule matches the target. The mutation stages without touching the filesystem and the tool surface collapses to the intercepted tool plus `finalize`. The agent either accepts the staged content with `finalize()` or issues a revised `edit`/`write` for the same target, which applies directly with no second hook round. That makes the strongest difference on files with style, formatting, or code rules you actually want enforced.
+`write-hook` fires only when a rule matches the target. The mutation stages without touching the filesystem and the tool surface collapses to the intercepted tool plus `finalize`. The agent either accepts the staged content with `finalize()` or issues a revised `edit`/`write` for the same target, which applies directly with no second hook round. This means you get custom context exact where you want it, when you want it, with little impact to the remaining session.
 
 ## Footprint
 
-- Vetted with `roastmyharness` (rules first developed in `aftermarket-tools`) and A/B-tested against dozens of competing designs for minimum cost.
+- Vetted with `roastmyharness` and A/B-tested against over a dozen competing designs for as minimum cost as possible.
 - Invisible until triggered: with no matching rule, native `edit`/`write` run untouched, and with no effective hooks configured the extension registers nothing.
-- Ships with no rules by default, so it does nothing until you ask Pi to create rules.
-- If the staged content already follows the rule, the agent confirms with zero-arg `finalize()` and the context cost stays near zero. You pay meaningfully only when the rule would otherwise have been missed.
+- Ships with no rules by default, so it has no footprint whatsoever until you ask Pi to create rules.
+- If the staged content already follows the rule, the agent confirms with zero-arg `finalize()` and the context cost stays near zero. You pay only when the rule would otherwise have been missed.
 
 ## Prerequisites
 
@@ -24,8 +24,23 @@ Important instructions in `AGENTS.md` degrade as sessions grow: they compete wit
 
 ## Install
 
-1. Make this directory available as a Pi extension. `package.json` already registers the entry via `pi.extensions`: `./index.ts`.
-2. Create at least one rule (next section). With zero effective rules the extension stays dormant by design.
+Requires Node.js `>=22.18.0` and Pi `>=0.85.1 <0.86.0`.
+
+From local path:
+
+```bash
+pi install /home/joshsimon/Projects/pi-extensions/write-hook
+```
+
+The extension ships as TypeScript source. Pi loads it through its own loader. No runtime dependencies.
+
+Create at least one rule (see Configure). With zero effective rules the extension stays dormant by design.
+
+Uninstall:
+
+```bash
+pi remove /home/joshsimon/Projects/pi-extensions/write-hook
+```
 
 ## First success
 
@@ -73,8 +88,8 @@ Validate changes with `npm run typecheck` and `npm test` (or `node --test test/m
 
 ## Warning
 
-It is very hard to beat default Pi, including `AGENTS.md` or plain hooks, on token efficiency or benchmark scores. Best use is non-code adherence where correctness matters more than tokens, such as keeping Markdown files, changelogs, or style rules consistent.
+It is very hard to beat default Pi, including `AGENTS.md` or plain hooks, on token efficiency or benchmark scores. Best use is non-code adherence where correctness matters, such as keeping Markdown files, changelogs, or style rules consistent.
 
 ## License
 
-MIT as declared in `package.json`. No `LICENSE` file ships with this snapshot.
+MIT as declared in `package.json`.
