@@ -10,12 +10,14 @@ Important instructions in `AGENTS.md` degrade as sessions grow: they compete wit
 
 `write-hook` fires only when a rule matches the target. The mutation stages without touching the filesystem and the tool surface collapses to the intercepted tool plus `finalize`. The agent either accepts the staged content with `finalize()` or issues a revised `edit`/`write` for the same target, which applies directly with no second hook round. This means you get custom context exactly where you want it, when you want it, with little impact to the remaining session.
 
-## Footprint
+## How to use
 
-- Vetted with [roastmyharness](https://github.com/sij0sh/roastmyharness) and A/B-tested against over a dozen competing designs for as minimum cost as possible.
-- Invisible until triggered: with no matching rule, native `edit`/`write` run untouched, and with no effective hooks configured the extension registers nothing.
-- Ships with no rules by default, so it has no footprint whatsoever until you ask Pi to create rules.
-- If the staged content already follows the rule, the agent confirms with zero-arg `finalize()` and the context cost stays near zero. You pay only when the rule would otherwise have been missed.
+1. Install the extension.
+2. Ask Pi to build your rules. Paste this prompt:
+
+> Read [PI-INSTRUCTIONS.md](./PI-INSTRUCTIONS.md) and convert my AGENTS.md into hook rules. Save shared rules to `~/.pi/agent/write-hook/edit-write.json`.
+
+With zero rules the extension stays dormant by design, so step 2 is the one that matters. When a rule needs live facts (line counts, content scans), ask Pi to add a `checks/` script too; the contract is in `PI-INSTRUCTIONS.md`.
 
 ## Prerequisites
 
@@ -41,6 +43,13 @@ Uninstall:
 ```bash
 pi remove /home/joshsimon/Projects/pi-extensions/write-hook
 ```
+
+## Footprint
+
+- Vetted with [roastmyharness](https://github.com/sij0sh/roastmyharness) and A/B-tested against over a dozen competing designs for as minimum cost as possible.
+- Invisible until triggered: with no matching rule, native `edit`/`write` run untouched, and with no effective hooks configured the extension registers nothing.
+- Ships with no rules by default, so it has no footprint whatsoever until you ask Pi to create rules.
+- If the staged content already follows the rule, the agent confirms with zero-arg `finalize()` and the context cost stays near zero. You pay only when the rule would otherwise have been missed.
 
 ## Configure
 
@@ -98,10 +107,6 @@ Under 500 non-blank lines the check passes and the mutation runs natively with n
 - Compaction, session reset, and session switch discard pending state.
 
 Validate changes with `npm run typecheck` and `npm test` (or `node --test test/match.test.ts test/config.test.ts` for the matching core).
-
-## Warning
-
-It is very hard to beat default Pi, including `AGENTS.md` or plain hooks, on token efficiency or benchmark scores. Best use is non-code adherence where correctness matters, such as keeping Markdown files, changelogs, or style rules consistent.
 
 ## License
 
