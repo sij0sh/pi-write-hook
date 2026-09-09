@@ -22,7 +22,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --test test/match.test.ts test/config.test.ts test/pending.test.ts test/integration.test.ts"
+    "test": "node --test test/match.test.ts test/config.test.ts test/pending.test.ts test/integration.test.ts test/checks.test.ts"
   },
   "engines": {
     "node": ">=22.18.0"

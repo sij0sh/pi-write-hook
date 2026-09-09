@@ -60,10 +60,31 @@ pi remove /home/joshsimon/Projects/pi-extensions/write-hook
 
 - `when` selectors (`tool`, `path`, `glob`, `ext`, `basename`) combine with AND. A rule with no target selector never matches.
 - `exclude` uses the same selector names as a blacklist: when every listed field matches, the rule is skipped.
-- A matching rule with no readable instructions and no readable context behaves as nonmatching.
+- A matching rule with no readable instructions, no readable context, and no checks behaves as nonmatching.
+- A gated rule (`trigger: "check"`) whose checks all pass behaves as nonmatching: no reminder, no staging.
+- A check `warn` appends its message to the pending text. A check `block` rejects before staging.
 - Hooks must be self-contained. Never write "read file X first": `read` is hidden while a mutation is pending, so inline facts via `instructions` or `context` (max 3 files, ~4 KiB total).
 
 Hand `PI-INSTRUCTIONS.md` to Pi to convert `AGENTS.md` or other rules into hooks. It is a plain instruction file, not a SKILL, so it never pollutes context until you reference it. See [PI-INSTRUCTIONS.md](./PI-INSTRUCTIONS.md).
+
+## Checks
+
+Static instructions cannot count lines or scan content. A check script can. Scripts live in `checks/` next to `edit-write.json`, both globally (`~/.pi/agent/write-hook/checks/`) and per project (`<project>/.pi/write-hook/checks/`). A project script with the same filename replaces the global one. This repo ships three examples: `size`, `ascii`, and `style`.
+
+A rule names scripts in `checks` and gates its instructions with `trigger: "check"`, so the reminder shows only when a check fires:
+
+```json
+{
+  "id": "size-500",
+  "when": { "glob": "**/*" },
+  "exclude": { "ext": ".md" },
+  "checks": ["size"],
+  "trigger": "check",
+  "instructions": ["Split the file into cohesive sibling modules until it is below 500 non-blank lines."]
+}
+```
+
+Under 500 non-blank lines the check passes and the mutation runs natively with no reminder. Over 500 it warns, and the pending text shows the live count plus the split instruction. A `warn` appends advice to the pending text; a `block` (such as non-ASCII content) rejects before staging. Missing, broken, or slow scripts count as `pass`, so checks never break native tools. See `PI-INSTRUCTIONS.md` for the script contract.
 
 ## Behavior
 

@@ -48,6 +48,34 @@ describe("parseConfig", () => {
   });
 });
 
+describe("checks and trigger", () => {
+  it("parses check names and defaults trigger to check", async () => {
+    const { parseConfig, effectiveTrigger, ruleHasPotential } = await import("../hooks/config.ts");
+    const parsed = parseConfig({
+      rules: [
+        { id: "s", when: { glob: "**/*" }, checks: ["size", "size.mjs", "  ", 42, "../evil"] },
+        { id: "plain", when: { path: "a" }, instructions: ["Hi."] },
+      ],
+    });
+    assert.deepEqual(parsed.config.rules[0].checks, ["size"]);
+    assert.equal(effectiveTrigger(parsed.config.rules[0]), "check");
+    assert.equal(effectiveTrigger(parsed.config.rules[1]), "match");
+    assert.equal(ruleHasPotential(parsed.config.rules[0]), true);
+  });
+  it("honors an explicit trigger and warns on unusable checks", async () => {
+    const { parseConfig, effectiveTrigger } = await import("../hooks/config.ts");
+    const parsed = parseConfig({
+      rules: [
+        { id: "g", when: { path: "a" }, checks: ["size"], trigger: "match" },
+        { id: "bad", when: { path: "b" }, checks: ["../evil", "  "] },
+      ],
+    });
+    assert.equal(effectiveTrigger(parsed.config.rules[0]), "match");
+    assert.equal(parsed.config.rules[1].checks, undefined);
+    assert.ok(parsed.warnings.some((w) => w.includes('"bad"')));
+  });
+});
+
 describe("composeConfigs", () => {
   it("lets project rules replace global rules by id", () => {
     const composed = composeConfigs(
@@ -96,7 +124,7 @@ describe("hasEffectiveHooks", () => {
     assert.equal(hasEffectiveHooks({ rules: [] }), false);
     assert.equal(hasEffectiveHooks({ rules: [{ id: "x", when: { path: "f" } }] }), false);
   });
-  it("is true for instructions or context includes", () => {
+  it("is true for instructions, context includes, or checks", () => {
     assert.equal(
       hasEffectiveHooks({ rules: [{ id: "x", when: { path: "f" }, instructions: ["Do this."] }] }),
       true,
@@ -105,6 +133,7 @@ describe("hasEffectiveHooks", () => {
       hasEffectiveHooks({ rules: [{ id: "x", when: { path: "f" }, context: [{ path: "c" }] }] }),
       true,
     );
+    assert.equal(hasEffectiveHooks({ rules: [{ id: "x", when: { path: "f" }, checks: ["size"] }] }), true);
   });
 });
 

@@ -3,6 +3,8 @@
 // without mutating and collapse the tool surface to [tool, finalize].
 
 import type { LoadedConfig } from "../hooks/config.ts";
+import { effectiveTrigger } from "../hooks/config.ts";
+import { buildCheckInput, collectCheckNames, runPreChecks } from "../hooks/checks.ts";
 import { matchHooks, resolveTarget, type MutationTool } from "../hooks/match.ts";
 import { renderPending, renderRefresh, resolveEffectiveMatch } from "../hooks/render.ts";
 import type { PendingState } from "../pending/state.ts";
@@ -73,12 +75,28 @@ export async function executeMutation(
   const loaded = await rt.loadConfig(cwd);
   const matched = matchHooks(loaded.config.rules, tool, toPosix(target.relative));
   if (matched.length === 0) return rt.nativeExecute(tool, rawArgs, call);
+  const checkNames = collectCheckNames(matched);
+  const check =
+    checkNames.length > 0
+      ? await runPreChecks(
+        checkNames,
+        await buildCheckInput(tool, rawArgs, cwd, toPosix(target.relative), target.absolute),
+      )
+      : { messages: [] as string[], blocked: undefined as string | undefined, triggered: false };
+  if (check.blocked) {
+    return textResult(check.blocked, hookEvent(tool, display, "check-block", rt.state));
+  }
   const match = await resolveEffectiveMatch(matched, cwd);
-  if (!match.hasEffectiveOutput) return rt.nativeExecute(tool, rawArgs, call);
+  if (!match.hasEffectiveOutput && check.messages.length === 0) {
+    return rt.nativeExecute(tool, rawArgs, call);
+  }
+  if (matched.every((rule) => effectiveTrigger(rule) === "check") && !check.triggered) {
+    return rt.nativeExecute(tool, rawArgs, call);
+  }
   if (rt.state.isAcknowledged(tool, target.absolute, match.hookFingerprint, match.contextFingerprint)) {
     return rt.nativeExecute(tool, rawArgs, call);
   }
-  return enterPending(tool, rawArgs, display, target.absolute, match, rt);
+  return enterPending(tool, rawArgs, display, target.absolute, match, rt, check.messages);
 }
 
 function enterPending(
@@ -88,6 +106,7 @@ function enterPending(
   absolutePath: string,
   match: Awaited<ReturnType<typeof resolveEffectiveMatch>>,
   rt: MutationRuntime,
+  checkMessages: string[] = [],
 ): TextResult {
   const active = rt.getActiveTools();
   rt.state.enter(
@@ -103,7 +122,7 @@ function enterPending(
     active,
   );
   rt.setActiveTools(visibleTools(active, tool));
-  return textResult(renderPending(tool, display, match), hookEvent(tool, display, "staged", rt.state));
+  return textResult(renderPending(tool, display, match, checkMessages), hookEvent(tool, display, "staged", rt.state));
 }
 
 async function executeDuringPending(
@@ -132,6 +151,16 @@ async function executeDuringPending(
   const cwd = call.ctx.cwd as string;
   const loaded = await rt.loadConfig(cwd);
   const matched = matchHooks(loaded.config.rules, tool, toPosix(display));
+  const revisionChecks = collectCheckNames(matched);
+  if (revisionChecks.length > 0) {
+    const revisionResult = await runPreChecks(
+      revisionChecks,
+      await buildCheckInput(tool, rawArgs, cwd, toPosix(display), absolutePath),
+    );
+    if (revisionResult.blocked) {
+      return textResult(revisionResult.blocked, hookEvent(tool, display, "check-block", rt.state));
+    }
+  }
   if (matched.length === 0) {
     const taken = rt.state.take();
     restoreSurface(rt, taken.restoreActive);

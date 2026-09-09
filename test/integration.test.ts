@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseConfig, type HookRule } from "../hooks/config.ts";
@@ -98,6 +98,78 @@ describe("native parity", () => {
     const result = await fake.call("write", WRITE_ARGS);
     assert.equal(result.content[0].text, "native-ok");
     assert.equal(fake.state.pending, null);
+  });
+});
+
+describe("check gating", () => {
+  function writeProjectCheck(cwd: string, name: string, body: string): void {
+    mkdirSync(join(cwd, ".pi", "write-hook", "checks"), { recursive: true });
+    writeFileSync(join(cwd, ".pi", "write-hook", "checks", `${name}.mjs`), body);
+  }
+  it("runs natively with no reminder when a gated check passes", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "write-hook-"));
+    writeProjectCheck(cwd, "size", `console.log(JSON.stringify({ verdict: "pass", message: "" }));`);
+    const fake = makeFake({
+      cwd,
+      rules: rulesOf({
+        rules: [
+          {
+            id: "size-500",
+            when: { path: "src/foo.ts" },
+            checks: ["size"],
+            instructions: ["Split the file into sibling modules."],
+          },
+        ],
+      }),
+    });
+    const result = await fake.call("write", WRITE_ARGS);
+    assert.equal(result.content[0].text, "native-ok");
+    assert.equal(fake.state.pending, null);
+  });
+  it("stages instructions plus the check message when a gated check warns", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "write-hook-"));
+    writeProjectCheck(
+      cwd,
+      "size",
+      `console.log(JSON.stringify({ verdict: "warn", message: "512 lines; target below 500." }));`,
+    );
+    const fake = makeFake({
+      cwd,
+      rules: rulesOf({
+        rules: [
+          {
+            id: "size-500",
+            when: { path: "src/foo.ts" },
+            checks: ["size"],
+            instructions: ["Split the file into sibling modules."],
+          },
+        ],
+      }),
+    });
+    const result = await fake.call("write", WRITE_ARGS);
+    assert.ok(result.content[0].text.includes("Pending write"));
+    assert.ok(result.content[0].text.includes("Split the file into sibling modules."));
+    assert.ok(result.content[0].text.includes("512 lines"));
+    assert.equal(fake.nativeCalls.length, 0);
+  });
+  it("blocks before staging when a check returns block", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "write-hook-"));
+    writeProjectCheck(
+      cwd,
+      "ascii",
+      `console.log(JSON.stringify({ verdict: "block", message: "Non-ASCII content." }));`,
+    );
+    const fake = makeFake({
+      cwd,
+      rules: rulesOf({
+        rules: [{ id: "ascii-strict", when: { path: "src/foo.ts" }, checks: ["ascii"] }],
+      }),
+    });
+    const result = await fake.call("write", WRITE_ARGS);
+    assert.ok(result.content[0].text.includes("Non-ASCII content."));
+    assert.equal(fake.state.pending, null);
+    assert.equal(fake.nativeCalls.length, 0);
+    assert.deepEqual(fake.active, ["read", "edit", "write", "bash"]);
   });
 });
 

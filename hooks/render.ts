@@ -84,9 +84,12 @@ export function renderPending(
   tool: "edit" | "write",
   displayPath: string,
   match: EffectiveMatch,
+  checkMessages: string[] = [],
 ): string {
   const parts = [`Pending ${tool} for ${displayPath}. No file changed.`, ""];
   if (match.instructions.length > 0) parts.push(match.instructions.join("\n"), "");
+  for (const line of checkMessages) parts.push(line);
+  if (checkMessages.length > 0) parts.push("");
   for (const file of match.contextFiles) {
     parts.push(`Relevant ${file.path}:`, file.content, "");
   }
@@ -98,9 +101,12 @@ export function renderRefresh(
   tool: "edit" | "write",
   displayPath: string,
   match: EffectiveMatch,
+  checkMessages: string[] = [],
 ): string {
   const parts = [`Hook context changed since this mutation was reviewed. Pending ${tool} for ${displayPath} remains unapplied.`, ""];
   if (match.instructions.length > 0) parts.push(match.instructions.join("\n"), "");
+  for (const line of checkMessages) parts.push(line);
+  if (checkMessages.length > 0) parts.push("");
   for (const file of match.contextFiles) {
     parts.push(`Relevant ${file.path}:`, file.content, "");
   }

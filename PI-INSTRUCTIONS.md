@@ -47,10 +47,18 @@ Shape:
 - `context` (optional): `[{ "path": "..." }]` files inlined with the hook
   (deduplicated, max 3 files, ~4 KiB total). Missing/blank files are skipped
   silently.
+- `checks` (optional): `["size"]` names of check scripts in `checks/`
+  (letters, digits, `-`, `_`; `.mjs` suffix optional). At most 3 run per
+  mutation, in rule-match order, deduplicated.
+- `trigger` (optional): `"match"` shows instructions on every `when` hit;
+  `"check"` shows them only when a check returns `warn` or `block`.
+  Default is `"check"` when `checks` is present, else `"match"`.
 
 A rule with no `when` target selector (`path`/`glob`/`ext`/`basename`) is
-dropped with a warning. A matching rule with no readable instructions and
-no readable context behaves as nonmatching (native tool runs untouched).
+dropped with a warning. A matching rule with no readable instructions,
+no readable context, and no checks behaves as nonmatching (native tool runs
+untouched). A gated rule (`trigger: "check"`) whose checks all pass also
+behaves as nonmatching: no reminder, no staging.
 
 ## Levels: global, file type, filename
 
@@ -102,6 +110,58 @@ More `exclude` patterns (all AND within one `exclude`):
 To blacklist several unrelated targets from one rule, prefer splitting the
 broad rule into narrower rules rather than overloading one `exclude`.
 
+## Checks: dynamic rules Pi can write
+
+Static instructions cannot count lines or scan content. A check script can.
+Layout:
+
+```text
+~/.pi/agent/write-hook/edit-write.json
+~/.pi/agent/write-hook/checks/size.mjs
+<project>/.pi/write-hook/edit-write.json
+<project>/.pi/write-hook/checks/custom.mjs
+```
+
+A project script with the same filename replaces the global script.
+Reference scripts by name (no extension) in `"checks": ["size"]`.
+A rule with `checks` has potential even with no `instructions` and no
+`context`. Missing scripts are skipped silently; a broken or slow script
+counts as `pass` so checks never break native tools.
+
+A gated rule shows its instructions only when triggered. Use this for
+reminders that apply sometimes, such as file size:
+
+```json
+{
+  "id": "size-500",
+  "when": { "glob": "**/*" },
+  "exclude": { "ext": ".md" },
+  "checks": ["size"],
+  "trigger": "check",
+  "instructions": ["Split the file into cohesive sibling modules until it is below 500 non-blank lines."]
+}
+```
+
+Under the limit the check passes and the mutation runs natively with no
+reminder. Over the limit the check warns and the pending text shows the
+live count plus the split instruction.
+
+Contract for `checks/<name>.mjs`:
+
+- Read one JSON document from `argv[2]`: `phase` (`"pre"`), `tool`,
+  `cwd`, `relativePath`, `absolutePath`, `stagedContent`, `diskContent`.
+- Print exactly one JSON object to stdout:
+  `{ "verdict": "pass" | "warn" | "block", "message": "..." }`.
+  Keep `message` below 500 characters. Send logs to stderr only.
+- Exit with code 0 on every expected path, including `pass`.
+- Finish within 5 seconds. Read the target and small references only.
+  Never write files, open network connections, or spawn subprocesses.
+- Return `pass` with an empty message when the check does not apply.
+  Return `warn` for advice. Return `block` only for hard stops.
+  A `block` rejects before staging; a `warn` appends to the pending text.
+- Use ASCII in messages unless the violation itself requires a code point.
+- Keep each script below 150 lines.
+
 ## Writing good hook content
 
 - Hooks must be self-contained: instructions plus included context. Never
@@ -124,6 +184,7 @@ broad rule into narrower rules rather than overloading one `exclude`.
    `node --test test/match.test.ts test/config.test.ts`)
 3. If a rule misfires, check in order: `when` selectors (AND — one wrong
    field blocks everything), `exclude` (AND — all listed fields must match
-   to skip), `tool` mismatch, `ext` dot/case, `glob` `*` vs `**`, then
-   whether the rule actually produced output (blank instructions/context =
-   nonmatching).
+   to skip), `tool` mismatch, `ext` dot/case, `glob` `*` vs `**`, `checks`
+   spelling plus script filename, `trigger` value (`match` vs `check`),
+   then whether the rule actually produced output (blank
+   instructions/context with all checks passing = nonmatching).

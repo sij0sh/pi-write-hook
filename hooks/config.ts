@@ -1,6 +1,6 @@
 // Two-layer hook config: global file, then project file with id-replace compose.
-// Only rules that could produce output (instructions or context includes) count
-// as effective for extension registration.
+// Only rules that could produce output (instructions, context includes, or
+// check scripts) count as effective for extension registration.
 
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -31,12 +31,16 @@ export interface HookExclude {
   basename?: string;
 }
 
+export type HookTrigger = "match" | "check";
+
 export interface HookRule {
   id: string;
   when: HookWhen;
   exclude?: HookExclude;
   instructions?: string[];
   context?: HookContextInclude[];
+  checks?: string[];
+  trigger?: HookTrigger;
 }
 
 export interface HookConfig {
@@ -74,6 +78,25 @@ function parseSelectors(raw: unknown): HookWhen {
   return out;
 }
 
+function cleanCheckNames(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string") continue;
+    const base = item.trim().replace(/\.(mjs|js)$/i, "");
+    if (!/^[A-Za-z0-9_-]+$/.test(base) || seen.has(base)) continue;
+    seen.add(base);
+    out.push(base);
+  }
+  return out;
+}
+
+export function effectiveTrigger(rule: HookRule): HookTrigger {
+  if (rule.trigger === "match" || rule.trigger === "check") return rule.trigger;
+  return (rule.checks?.length ?? 0) > 0 ? "check" : "match";
+}
+
 function hasAnySelector(value: HookWhen | HookExclude): boolean {
   return Boolean(value.tool || value.path || value.glob || value.ext || value.basename);
 }
@@ -85,6 +108,9 @@ function parseRule(raw: unknown): HookRule | undefined {
   const when = parseSelectors(raw.when);
   const exclude = isRecord(raw.exclude) ? parseSelectors(raw.exclude) : undefined;
   const instructions = cleanStrings(raw.instructions);
+  const checks = cleanCheckNames(raw.checks);
+  const rawTrigger = (raw as Record<string, unknown>).trigger;
+  const trigger = rawTrigger === "match" || rawTrigger === "check" ? rawTrigger : undefined;
   const context: HookContextInclude[] = Array.isArray(raw.context)
     ? raw.context
         .filter(isRecord)
@@ -97,6 +123,8 @@ function parseRule(raw: unknown): HookRule | undefined {
     ...(exclude && hasAnySelector(exclude) ? { exclude } : {}),
     instructions: instructions.length > 0 ? instructions : undefined,
     context: context.length > 0 ? context : undefined,
+    checks: checks.length > 0 ? checks : undefined,
+    ...(trigger ? { trigger } : {}),
   };
 }
 
@@ -116,6 +144,9 @@ export function parseConfig(raw: unknown): { config: HookConfig; warnings: strin
       continue;
     }
     rules.push(rule);
+    if (isRecord(item) && item.checks !== undefined && (rule.checks?.length ?? 0) === 0) {
+      warnings.push(`Hook rule "${rule.id}" lists no usable checks.`);
+    }
     for (const line of rule.instructions ?? []) {
       if (isFetchDirective(line)) {
         warnings.push(`Hook rule "${rule.id}" tells the model to fetch files; include the content instead.`);
@@ -150,7 +181,11 @@ export function composeConfigs(globalConfig: HookConfig, projectConfig: HookConf
 
 // A rule is potentially effective when it could produce model-facing output.
 export function ruleHasPotential(rule: HookRule): boolean {
-  return (rule.instructions?.length ?? 0) > 0 || (rule.context?.length ?? 0) > 0;
+  return (
+    (rule.instructions?.length ?? 0) > 0 ||
+    (rule.context?.length ?? 0) > 0 ||
+    (rule.checks?.length ?? 0) > 0
+  );
 }
 
 export function hasEffectiveHooks(config: HookConfig): boolean {
