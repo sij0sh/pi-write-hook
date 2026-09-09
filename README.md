@@ -44,11 +44,13 @@ pi remove /home/joshsimon/Projects/pi-extensions/write-hook
 
 ## First success
 
-1. Save the example config below as `<project>/.pi/hooks/edit-write.json`.
+1. Save the example config below as `<project>/.pi/write-hook/edit-write.json`.
 2. Ask Pi to write a matching file, for example `docs/notes.md`.
 3. Watch the first mutation stage instead of writing. On a later turn run `finalize()` to apply it unchanged, or send a revised `edit`/`write` for the same target to apply the correction directly.
 
-Global rules live at `~/.pi/agent/hooks/edit-write.json`. Project rules replace global rules with the same `id`. `WRITE_HOOK_CONFIG` points at a single file for test harnesses.
+Global rules live at `~/.pi/agent/write-hook/edit-write.json`. Project rules replace global rules with the same `id`. `WRITE_HOOK_CONFIG` points at a single file for test harnesses.
+
+If you previously used the `hooks/` paths (`~/.pi/agent/hooks/edit-write.json` or `<project>/.pi/hooks/edit-write.json`), move them to the `write-hook/` paths above and delete the now-empty `hooks/` directory. Pi warns on startup when any `hooks/` directory exists, since hooks were renamed to extensions.
 
 ## Configure
 

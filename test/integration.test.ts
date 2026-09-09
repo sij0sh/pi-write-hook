@@ -254,11 +254,12 @@ describe("economy metrics", () => {
 
 describe("extension wiring", () => {
   async function setup(configDoc: unknown | undefined) {
+    process.env.PI_CODING_AGENT_DIR = mkdtempSync(join(tmpdir(), "write-hook-agent-"));
     const cwd = mkdtempSync(join(tmpdir(), "write-hook-"));
     if (configDoc !== undefined) {
       const { mkdirSync } = await import("node:fs");
-      mkdirSync(join(cwd, ".pi", "hooks"), { recursive: true });
-      writeFileSync(join(cwd, ".pi", "hooks", "edit-write.json"), JSON.stringify(configDoc));
+      mkdirSync(join(cwd, ".pi", "write-hook"), { recursive: true });
+      writeFileSync(join(cwd, ".pi", "write-hook", "edit-write.json"), JSON.stringify(configDoc));
     }
     const handlers = new Map<string, Array<(event: never, ctx: never) => unknown>>();
     const tools = new Map<string, { name: string; execute: (...args: any[]) => Promise<TextResult> }>();

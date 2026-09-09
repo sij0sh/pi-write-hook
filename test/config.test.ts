@@ -109,6 +109,14 @@ describe("hasEffectiveHooks", () => {
 });
 
 describe("loadConfig", () => {
+  function isolateAgentDir(): () => void {
+    const prev = process.env.PI_CODING_AGENT_DIR;
+    process.env.PI_CODING_AGENT_DIR = mkdtempSync(join(tmpdir(), "write-hook-agent-"));
+    return () => {
+      if (prev === undefined) delete process.env.PI_CODING_AGENT_DIR;
+      else process.env.PI_CODING_AGENT_DIR = prev;
+    };
+  }
   it("honors the test-only env override", async () => {
     const dir = mkdtempSync(join(tmpdir(), "write-hook-"));
     const file = join(dir, "hooks.json");
@@ -123,14 +131,55 @@ describe("loadConfig", () => {
     }
   });
   it("loads the project layer", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "write-hook-"));
-    mkdirSync(join(dir, ".pi", "hooks"), { recursive: true });
-    writeFileSync(
-      join(dir, ".pi", "hooks", "edit-write.json"),
-      JSON.stringify({ rules: [{ id: "p", when: { ext: "ts" }, instructions: ["Typed."] }] }),
-    );
-    const loaded = await loadConfig(dir);
-    assert.deepEqual(loaded.config.rules.map((r) => r.id), ["p"]);
+    const restore = isolateAgentDir();
+    try {
+      const dir = mkdtempSync(join(tmpdir(), "write-hook-"));
+      mkdirSync(join(dir, ".pi", "write-hook"), { recursive: true });
+      writeFileSync(
+        join(dir, ".pi", "write-hook", "edit-write.json"),
+        JSON.stringify({ rules: [{ id: "p", when: { ext: "ts" }, instructions: ["Typed."] }] }),
+      );
+      const loaded = await loadConfig(dir);
+      assert.deepEqual(loaded.config.rules.map((r) => r.id), ["p"]);
+    } finally {
+      restore();
+    }
+  });
+  it("falls back to the legacy hooks/ path with a deprecation warning", async () => {
+    const restore = isolateAgentDir();
+    try {
+      const dir = mkdtempSync(join(tmpdir(), "write-hook-"));
+      mkdirSync(join(dir, ".pi", "hooks"), { recursive: true });
+      writeFileSync(
+        join(dir, ".pi", "hooks", "edit-write.json"),
+        JSON.stringify({ rules: [{ id: "legacy", when: { ext: "ts" }, instructions: ["Old."] }] }),
+      );
+      const loaded = await loadConfig(dir);
+      assert.deepEqual(loaded.config.rules.map((r) => r.id), ["legacy"]);
+      assert.ok(loaded.warnings.some((w) => w.includes("Legacy config")));
+    } finally {
+      restore();
+    }
+  });
+  it("prefers the write-hook/ path over the legacy hooks/ path", async () => {
+    const restore = isolateAgentDir();
+    try {
+      const dir = mkdtempSync(join(tmpdir(), "write-hook-"));
+      mkdirSync(join(dir, ".pi", "write-hook"), { recursive: true });
+      mkdirSync(join(dir, ".pi", "hooks"), { recursive: true });
+      writeFileSync(
+        join(dir, ".pi", "write-hook", "edit-write.json"),
+        JSON.stringify({ rules: [{ id: "current", when: { ext: "ts" }, instructions: ["New."] }] }),
+      );
+      writeFileSync(
+        join(dir, ".pi", "hooks", "edit-write.json"),
+        JSON.stringify({ rules: [{ id: "legacy", when: { ext: "ts" }, instructions: ["Old."] }] }),
+      );
+      const loaded = await loadConfig(dir);
+      assert.deepEqual(loaded.config.rules.map((r) => r.id), ["current"]);
+    } finally {
+      restore();
+    }
   });
   it("warns when the env override is unreadable", async () => {
     process.env[CONFIG_ENV_OVERRIDE] = join(mkdtempSync(join(tmpdir(), "write-hook-")), "missing.json");
@@ -143,8 +192,13 @@ describe("loadConfig", () => {
     }
   });
   it("returns empty config when no files exist", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "write-hook-"));
-    const loaded = await loadConfig(join(dir, "missing"));
-    assert.deepEqual(loaded.config.rules, []);
+    const restore = isolateAgentDir();
+    try {
+      const dir = mkdtempSync(join(tmpdir(), "write-hook-"));
+      const loaded = await loadConfig(join(dir, "missing"));
+      assert.deepEqual(loaded.config.rules, []);
+    } finally {
+      restore();
+    }
   });
 });

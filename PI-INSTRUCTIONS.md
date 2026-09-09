@@ -8,10 +8,12 @@ hooks correctly without guessing.
 
 Two layers. Project rules replace global rules with the same `id`.
 
-- Global: `~/.pi/agent/hooks/edit-write.json`
-- Project: `<project>/.pi/hooks/edit-write.json`
+- Global: `~/.pi/agent/write-hook/edit-write.json`
+- Project: `<project>/.pi/write-hook/edit-write.json`
 - Test override: `WRITE_HOOK_CONFIG` points at a single file
   (used by harnesses; prefer the project file for real work).
+
+Never use a `hooks/` directory for config. Pi warns on startup when any `hooks/` directory exists. The legacy paths `~/.pi/agent/hooks/edit-write.json` and `<project>/.pi/hooks/edit-write.json` still load with a deprecation warning, but move them to the `write-hook/` paths above and remove the empty `hooks/` directory.
 
 Shape:
 

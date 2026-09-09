@@ -7,7 +7,8 @@ import { join } from "node:path";
 import { CONFIG_DIR_NAME, getAgentDir } from "@earendil-works/pi-coding-agent";
 import { hashText } from "./fingerprint.ts";
 
-export const CONFIG_REL_PATH = "hooks/edit-write.json";
+export const CONFIG_REL_PATH = "write-hook/edit-write.json";
+export const LEGACY_CONFIG_REL_PATH = "hooks/edit-write.json";
 export const CONFIG_ENV_OVERRIDE = "WRITE_HOOK_CONFIG";
 
 export interface HookWhen {
@@ -166,14 +167,25 @@ export async function loadConfig(cwd: string): Promise<LoadedConfig> {
     }
     return finish(parsed);
   }
-  const globalRaw = await readConfigFile(join(getAgentDir(), CONFIG_REL_PATH));
-  const projectRaw = await readConfigFile(join(cwd, CONFIG_DIR_NAME, CONFIG_REL_PATH));
-  const global = parseConfig(globalRaw ?? {});
-  const project = parseConfig(projectRaw ?? {});
+  const global = await loadLayer(join(getAgentDir(), CONFIG_REL_PATH), join(getAgentDir(), LEGACY_CONFIG_REL_PATH));
+  const project = await loadLayer(
+    join(cwd, CONFIG_DIR_NAME, CONFIG_REL_PATH),
+    join(cwd, CONFIG_DIR_NAME, LEGACY_CONFIG_REL_PATH),
+  );
   return finish({
     config: composeConfigs(global.config, project.config),
     warnings: [...global.warnings, ...project.warnings],
   });
+}
+
+async function loadLayer(currentPath: string, legacyPath: string): Promise<{ config: HookConfig; warnings: string[] }> {
+  const raw = await readConfigFile(currentPath);
+  if (raw !== undefined) return parseConfig(raw);
+  const legacyRaw = await readConfigFile(legacyPath);
+  if (legacyRaw === undefined) return { config: { rules: [] }, warnings: [] };
+  const parsed = parseConfig(legacyRaw);
+  parsed.warnings.push(`Legacy config ${legacyPath} is deprecated; move it to ${currentPath} and remove any empty hooks/ directory.`);
+  return parsed;
 }
 
 function finish(parsed: { config: HookConfig; warnings: string[] }): LoadedConfig {
