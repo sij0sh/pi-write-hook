@@ -46,7 +46,7 @@ pi remove /home/joshsimon/Projects/pi-extensions/write-hook
 
 ## Footprint
 
-- Vetted with [roastmyharness](https://github.com/sij0sh/roastmyharness) and A/B-tested against over a dozen competing designs for as minimum cost as possible.
+- Vetted with [roastmyharness](https://github.com/sij0sh/roastmyharness) and A/B-tested against over several competing designs for as minimum cost as possible.
 - Invisible until triggered: with no matching rule, native `edit`/`write` run untouched, and with no effective hooks configured the extension registers nothing.
 - Ships with no rules by default, so it has no footprint whatsoever until you ask Pi to create rules.
 - If the staged content already follows the rule, the agent confirms with zero-arg `finalize()` and the context cost stays near zero. You pay only when the rule would otherwise have been missed.
