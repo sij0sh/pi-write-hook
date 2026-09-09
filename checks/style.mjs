@@ -1,6 +1,7 @@
 // Style check: warns on strong writing-style signals in markdown.
-// Masks frontmatter, fences, blockquotes, code spans, and URLs, then reports
-// long sentences, trailing conditions, and prose enumerations. Never blocks.
+// Masks frontmatter, fences, blockquotes, tables, code spans, and URLs, then
+// reports long sentences, trailing conditions, and prose enumerations.
+// Never blocks.
 
 const LONG_WORDS = 50;
 const MAX_SIGNALS = 5;
@@ -34,6 +35,12 @@ function mask(text) {
   let fence = false;
   for (let i = start; i < lines.length; i++) {
     if (/^\s{0,3}>\s?/.test(lines[i])) {
+      lines[i] = "";
+      continue;
+    }
+    // Table rows carry no sentence boundaries; scanned as one line they read
+    // as one giant sentence, so they are excluded like fences.
+    if (/^\s{0,3}\|/.test(lines[i])) {
       lines[i] = "";
       continue;
     }
