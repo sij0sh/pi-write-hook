@@ -1,0 +1,30 @@
+{
+  "name": "write-hook",
+  "version": "0.1.0",
+  "description": "Deferred-commit hook layer for Pi edit/write with a transient zero-arg finalize",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": ">=0.85.1 <0.86.0",
+    "typebox": "^1.3.7"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "0.85.1",
+    "@types/node": "24.0.0",
+    "typebox": "1.3.7",
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/match.test.ts test/config.test.ts test/pending.test.ts test/integration.test.ts"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  }
+}

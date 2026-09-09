@@ -1,0 +1,4 @@
+node_modules/
+.pi-files/roastmyharness/
+.agents/
+roast-hooks/
