@@ -2,17 +2,26 @@
   "name": "write-hook",
   "version": "0.1.0",
   "description": "Deferred-commit hook layer for Pi edit/write with a transient zero-arg finalize",
+  "keywords": ["pi-package"],
   "license": "MIT",
   "private": true,
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sij0sh/pi-write-hook.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sij0sh/pi-write-hook/issues"
+  },
+  "homepage": "https://github.com/sij0sh/pi-write-hook#readme",
   "pi": {
     "extensions": [
       "./index.ts"
     ]
   },
   "peerDependencies": {
-    "@earendil-works/pi-coding-agent": ">=0.85.1 <0.86.0",
-    "typebox": "^1.3.7"
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
   },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "0.85.1",
