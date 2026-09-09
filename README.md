@@ -8,7 +8,7 @@
 
 Important instructions in `AGENTS.md` degrade as sessions grow: they compete with everything else in context. A default hook on every edit or write has the opposite fault: it fires whether it is relevant or not, so its output becomes noise or triggers rewrites of files that were already fine.
 
-`write-hook` fires only when a rule matches the target. The mutation stages without touching the filesystem and the tool surface collapses to the intercepted tool plus `finalize`. The agent either accepts the staged content with `finalize()` or issues a revised `edit`/`write` for the same target before finalizing. That makes the strongest difference on files with style, formatting, or code rules you actually want enforced.
+`write-hook` fires only when a rule matches the target. The mutation stages without touching the filesystem and the tool surface collapses to the intercepted tool plus `finalize`. The agent either accepts the staged content with `finalize()` or issues a revised `edit`/`write` for the same target, which applies directly with no second hook round. That makes the strongest difference on files with style, formatting, or code rules you actually want enforced.
 
 ## Footprint
 
