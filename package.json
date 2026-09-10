@@ -1,10 +1,9 @@
 {
-  "name": "write-hook",
+  "name": "pi-write-hook",
   "version": "0.1.0",
   "description": "Deferred-commit hook layer for Pi edit/write with a transient zero-arg finalize",
   "keywords": ["pi-package"],
   "license": "MIT",
-  "private": true,
   "type": "module",
   "repository": {
     "type": "git",

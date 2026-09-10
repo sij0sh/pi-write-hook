@@ -19,29 +19,36 @@ Important instructions in `AGENTS.md` degrade as sessions grow: they compete wit
 
 With zero rules the extension stays dormant by design, so step 2 is the one that matters. When a rule needs live facts (line counts, content scans), ask Pi to add a `checks/` script too; the contract is in `PI-INSTRUCTIONS.md`.
 
-## Prerequisites
-
-- Node `>=22.18.0` (per `engines` in `package.json`).
-- Pi `>=0.85.1 <0.86.0` with `typebox ^1.3.7` (per `peerDependencies`).
-
 ## Install
 
-Requires Node.js `>=22.18.0` and Pi `>=0.85.1 <0.86.0`.
+Requires Node.js 22.18+ and Pi 0.85.1+.
 
-From local path:
+From GitHub:
 
 ```bash
-pi install /home/joshsimon/Projects/pi-extensions/write-hook
+pi install git:github.com/sij0sh/pi-write-hook
+```
+
+From npm:
+
+```bash
+pi install npm:pi-write-hook
 ```
 
 The extension ships as TypeScript source. Pi loads it through its own loader. No runtime dependencies.
 
 Create at least one rule (see Configure). With zero effective rules the extension stays dormant by design.
 
+Update:
+
+```bash
+pi update git:github.com/sij0sh/pi-write-hook
+```
+
 Uninstall:
 
 ```bash
-pi remove /home/joshsimon/Projects/pi-extensions/write-hook
+pi remove git:github.com/sij0sh/pi-write-hook
 ```
 
 ## Footprint
